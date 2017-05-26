@@ -7,15 +7,25 @@ using System.Collections.Generic;
 public  class EnhancelScrollView : MonoBehaviour {
     public AnimationCurve PositionCurve;//模拟位置曲线 ？
     public AnimationCurve ScaleCurve;//模拟缩放曲线 ？
+
+	public float PosCurveFactor=500f;
+	public float yPositionValue=46f;
+
     public List<EnhanceItem> ScrollViewItems = new List<EnhanceItem>();//保存每一张卡牌的数据
     public List<Image> ImageTargets = new List<Image>();//保存每一张卡牌的图片 ？为什么有必要保存
     public float d_Factor=0.2f;
+	public float Duration=0.2f;//スワイプ可能な間隔
+	public float HorizontalValue=0f;
+	public float HorizontalTargetValue=0.1f;
 
 
+
+	private float OriginHorizontalValue=0.1f;
     private float[] m_MoveHorizontalValues;//
     private float[] m_DHorizontalValues;//
-
-
+	private float m_CurrentDuration;
+	private bool isInit=false;
+	private EnhanceItem m_Centeritem;
     public void Init()
     {
         if (m_MoveHorizontalValues == null)
@@ -46,6 +56,83 @@ public  class EnhancelScrollView : MonoBehaviour {
     }
 
 
+	void Update()
+	{
+		if (!isInit) {
+			return;
+		}
+		m_CurrentDuration += Time.deltaTime;
+		SortDepth ();
+		if (m_CurrentDuration > Duration) {
+			m_CurrentDuration = Duration;
+
+			if (m_Centeritem == null) {
+				var obj = transform.GetChild (transform.childCount - 1);//?
+				if (obj != null) {
+					m_Centeritem = obj.GetComponent<EnhanceItem> ();
+
+				}
+				if (m_Centeritem != null) {
+					m_Centeritem.SetSelectColor (true);
+				}
+
+			} else {
+				m_Centeritem.SetSelectColor (true);
+			}
+
+
+		}
+
+
+		float percent = m_CurrentDuration / Duration;
+		HorizontalValue = Mathf.Lerp (OriginHorizontalValue, HorizontalTargetValue, percent);
+		UpdateEnhanceScrollView (HorizontalValue);
+
+
+
+
+	}
+
+	public void UpdateEnhanceScrollView(float fValue){
+		for (int i = 0; i < ScrollViewItems.Count; i++) {
+			EnhanceItem itemScript = ScrollViewItems [i];
+			float xValue = GetXValue (fValue,m_DHorizontalValues[itemScript.ScrollViewItemIndex]);
+			float scaleValue = GetScaleValue (fValue, m_DHorizontalValues [itemScript.ScrollViewItemIndex]);
+			itemScript.UpdataScrollViewitems (xValue,yPositionValue,scaleValue);
+		}
+	}
+
+	private float GetXValue(float sliderValue,float added){
+		float evaluteValue = PositionCurve.Evaluate (sliderValue + added) * PosCurveFactor;//(sliderValue + added)指定された区間のカーブ値を評価する
+		return evaluteValue;
+	}
+
+	private float GetScaleValue(float sliderValue,float add){
+		float scaleValue = ScaleCurve.Evaluate (sliderValue + add);
+		return scaleValue;
+	}
+
+	public void SortDepth(){
+		ImageTargets.Sort (new CompareDepthMethod ());//IComparerインタフェースを使って、カードをソートする
+		for(int i=0;i<ImageTargets.Count;i++){
+			ImageTargets [i].transform.SetSiblingIndex (i);//エディターにおいての並び順を左から右へとソートする
+		}
+
+
+
+	}
+
+	public class CompareDepthMethod:IComparer<Image>{
+		public int Compare(Image left, Image right){
+			if (left.transform.position.x > right.transform.position.x) {
+				return 1;
+			} else if (left.transform.position.x < right.transform.position.x) {
+				return -1;
+			} else {
+				return 0;
+			}
+		}
+	}
 
 
 
